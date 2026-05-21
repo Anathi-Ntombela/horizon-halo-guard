@@ -16,6 +16,7 @@ import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppTransactionHistoryRouteImport } from './routes/_app.transaction-history'
 import { Route as AppPaymentTransferRouteImport } from './routes/_app.payment-transfer'
 import { Route as AppMyBanksRouteImport } from './routes/_app.my-banks'
+import { Route as AppHaloRouteImport } from './routes/_app.halo'
 
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
@@ -51,11 +52,17 @@ const AppMyBanksRoute = AppMyBanksRouteImport.update({
   path: '/my-banks',
   getParentRoute: () => AppRoute,
 } as any)
+const AppHaloRoute = AppHaloRouteImport.update({
+  id: '/halo',
+  path: '/halo',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/halo': typeof AppHaloRoute
   '/my-banks': typeof AppMyBanksRoute
   '/payment-transfer': typeof AppPaymentTransferRoute
   '/transaction-history': typeof AppTransactionHistoryRoute
@@ -63,6 +70,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/halo': typeof AppHaloRoute
   '/my-banks': typeof AppMyBanksRoute
   '/payment-transfer': typeof AppPaymentTransferRoute
   '/transaction-history': typeof AppTransactionHistoryRoute
@@ -73,6 +81,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/_app/halo': typeof AppHaloRoute
   '/_app/my-banks': typeof AppMyBanksRoute
   '/_app/payment-transfer': typeof AppPaymentTransferRoute
   '/_app/transaction-history': typeof AppTransactionHistoryRoute
@@ -84,6 +93,7 @@ export interface FileRouteTypes {
     | '/'
     | '/sign-in'
     | '/sign-up'
+    | '/halo'
     | '/my-banks'
     | '/payment-transfer'
     | '/transaction-history'
@@ -91,6 +101,7 @@ export interface FileRouteTypes {
   to:
     | '/sign-in'
     | '/sign-up'
+    | '/halo'
     | '/my-banks'
     | '/payment-transfer'
     | '/transaction-history'
@@ -100,6 +111,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/sign-in'
     | '/sign-up'
+    | '/_app/halo'
     | '/_app/my-banks'
     | '/_app/payment-transfer'
     | '/_app/transaction-history'
@@ -163,10 +175,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMyBanksRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/halo': {
+      id: '/_app/halo'
+      path: '/halo'
+      fullPath: '/halo'
+      preLoaderRoute: typeof AppHaloRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppHaloRoute: typeof AppHaloRoute
   AppMyBanksRoute: typeof AppMyBanksRoute
   AppPaymentTransferRoute: typeof AppPaymentTransferRoute
   AppTransactionHistoryRoute: typeof AppTransactionHistoryRoute
@@ -174,6 +194,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppHaloRoute: AppHaloRoute,
   AppMyBanksRoute: AppMyBanksRoute,
   AppPaymentTransferRoute: AppPaymentTransferRoute,
   AppTransactionHistoryRoute: AppTransactionHistoryRoute,
@@ -190,3 +211,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
