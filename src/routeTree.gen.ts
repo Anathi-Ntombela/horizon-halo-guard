@@ -12,6 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppTransactionHistoryRouteImport } from './routes/_app.transaction-history'
+import { Route as AppPaymentTransferRouteImport } from './routes/_app.payment-transfer'
+import { Route as AppMyBanksRouteImport } from './routes/_app.my-banks'
 
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
@@ -27,33 +31,83 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransactionHistoryRoute = AppTransactionHistoryRouteImport.update({
+  id: '/transaction-history',
+  path: '/transaction-history',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPaymentTransferRoute = AppPaymentTransferRouteImport.update({
+  id: '/payment-transfer',
+  path: '/payment-transfer',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMyBanksRoute = AppMyBanksRouteImport.update({
+  id: '/my-banks',
+  path: '/my-banks',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AppRoute
+  '/': typeof AppIndexRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/my-banks': typeof AppMyBanksRoute
+  '/payment-transfer': typeof AppPaymentTransferRoute
+  '/transaction-history': typeof AppTransactionHistoryRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof AppRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/my-banks': typeof AppMyBanksRoute
+  '/payment-transfer': typeof AppPaymentTransferRoute
+  '/transaction-history': typeof AppTransactionHistoryRoute
+  '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_app': typeof AppRoute
+  '/_app': typeof AppRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/_app/my-banks': typeof AppMyBanksRoute
+  '/_app/payment-transfer': typeof AppPaymentTransferRoute
+  '/_app/transaction-history': typeof AppTransactionHistoryRoute
+  '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sign-in' | '/sign-up'
+  fullPaths:
+    | '/'
+    | '/sign-in'
+    | '/sign-up'
+    | '/my-banks'
+    | '/payment-transfer'
+    | '/transaction-history'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sign-in' | '/sign-up'
-  id: '__root__' | '/_app' | '/sign-in' | '/sign-up'
+  to:
+    | '/sign-in'
+    | '/sign-up'
+    | '/my-banks'
+    | '/payment-transfer'
+    | '/transaction-history'
+    | '/'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/sign-in'
+    | '/sign-up'
+    | '/_app/my-banks'
+    | '/_app/payment-transfer'
+    | '/_app/transaction-history'
+    | '/_app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  AppRoute: typeof AppRoute
+  AppRoute: typeof AppRouteWithChildren
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
 }
@@ -81,14 +135,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/': {
+      id: '/_app/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/transaction-history': {
+      id: '/_app/transaction-history'
+      path: '/transaction-history'
+      fullPath: '/transaction-history'
+      preLoaderRoute: typeof AppTransactionHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/payment-transfer': {
+      id: '/_app/payment-transfer'
+      path: '/payment-transfer'
+      fullPath: '/payment-transfer'
+      preLoaderRoute: typeof AppPaymentTransferRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/my-banks': {
+      id: '/_app/my-banks'
+      path: '/my-banks'
+      fullPath: '/my-banks'
+      preLoaderRoute: typeof AppMyBanksRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppMyBanksRoute: typeof AppMyBanksRoute
+  AppPaymentTransferRoute: typeof AppPaymentTransferRoute
+  AppTransactionHistoryRoute: typeof AppTransactionHistoryRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppMyBanksRoute: AppMyBanksRoute,
+  AppPaymentTransferRoute: AppPaymentTransferRoute,
+  AppTransactionHistoryRoute: AppTransactionHistoryRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  AppRoute: AppRoute,
+  AppRoute: AppRouteWithChildren,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
