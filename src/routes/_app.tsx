@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, Link, useRouterState, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import {
-  Home, Landmark, History, Send, Shield, LogOut, Menu, X,
+  Home, Landmark, History, Send, Shield, LogOut, Menu, X, UserCog,
 } from 'lucide-react'
 
 import { supabase } from '@/integrations/supabase/client'
@@ -18,15 +18,16 @@ export const Route = createFileRoute('/_app')({
 })
 
 const NAV = [
-  { to: '/',                   label: 'Home',            icon: Home },
-  { to: '/my-banks',           label: 'My Banks',        icon: Landmark },
-  { to: '/transaction-history',label: 'Transactions',    icon: History },
-  { to: '/payment-transfer',   label: 'Payment Transfer',icon: Send },
-  { to: '/halo',               label: 'HALO Security',   icon: Shield },
+  { to: '/',                   label: 'Home',            icon: Home,     adminOnly: false },
+  { to: '/my-banks',           label: 'My Banks',        icon: Landmark, adminOnly: false },
+  { to: '/transaction-history',label: 'Transactions',    icon: History,  adminOnly: false },
+  { to: '/payment-transfer',   label: 'Payment Transfer',icon: Send,     adminOnly: false },
+  { to: '/halo',               label: 'HALO Security',   icon: Shield,   adminOnly: false },
+  { to: '/admin',              label: 'Admin',           icon: UserCog,  adminOnly: true  },
 ] as const
 
 function AppLayout() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const nav = useNavigate()
   const { location } = useRouterState()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -45,7 +46,7 @@ function AppLayout() {
         <span className="text-lg font-bold tracking-tight">HORIZON</span>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV.map(({ to, label, icon: Icon }) => {
+        {NAV.filter(n => !n.adminOnly || isAdmin).map(({ to, label, icon: Icon }) => {
           const active = location.pathname === to
           return (
             <Link key={to} to={to}
@@ -59,7 +60,9 @@ function AppLayout() {
         })}
       </nav>
       <div className="px-3 py-4 border-t border-white/10">
-        <div className="px-3 mb-2 text-xs text-white/60 truncate">{user?.email}</div>
+        <div className="px-3 mb-2 text-xs text-white/60 truncate">
+          {user?.email} {isAdmin && <span className="ml-1 text-emerald-300">• admin</span>}
+        </div>
         <Button variant="ghost" onClick={signOut}
           className="w-full justify-start text-white/80 hover:text-white hover:bg-white/10">
           <LogOut className="size-4 mr-2" /> Sign out
@@ -72,7 +75,6 @@ function AppLayout() {
     <div className="min-h-screen flex bg-slate-50">
       <div className="hidden md:flex">{sidebar}</div>
 
-      {/* mobile drawer */}
       <div className={cn(
         'md:hidden fixed inset-0 z-40 transition',
         mobileOpen ? 'visible' : 'invisible pointer-events-none',

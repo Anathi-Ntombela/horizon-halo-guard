@@ -17,6 +17,7 @@ import { Route as AppTransactionHistoryRouteImport } from './routes/_app.transac
 import { Route as AppPaymentTransferRouteImport } from './routes/_app.payment-transfer'
 import { Route as AppMyBanksRouteImport } from './routes/_app.my-banks'
 import { Route as AppHaloRouteImport } from './routes/_app.halo'
+import { Route as AppAdminRouteImport } from './routes/_app.admin'
 
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
@@ -57,11 +58,17 @@ const AppHaloRoute = AppHaloRouteImport.update({
   path: '/halo',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/admin': typeof AppAdminRoute
   '/halo': typeof AppHaloRoute
   '/my-banks': typeof AppMyBanksRoute
   '/payment-transfer': typeof AppPaymentTransferRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/admin': typeof AppAdminRoute
   '/halo': typeof AppHaloRoute
   '/my-banks': typeof AppMyBanksRoute
   '/payment-transfer': typeof AppPaymentTransferRoute
@@ -81,6 +89,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/_app/admin': typeof AppAdminRoute
   '/_app/halo': typeof AppHaloRoute
   '/_app/my-banks': typeof AppMyBanksRoute
   '/_app/payment-transfer': typeof AppPaymentTransferRoute
@@ -93,6 +102,7 @@ export interface FileRouteTypes {
     | '/'
     | '/sign-in'
     | '/sign-up'
+    | '/admin'
     | '/halo'
     | '/my-banks'
     | '/payment-transfer'
@@ -101,6 +111,7 @@ export interface FileRouteTypes {
   to:
     | '/sign-in'
     | '/sign-up'
+    | '/admin'
     | '/halo'
     | '/my-banks'
     | '/payment-transfer'
@@ -111,6 +122,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/sign-in'
     | '/sign-up'
+    | '/_app/admin'
     | '/_app/halo'
     | '/_app/my-banks'
     | '/_app/payment-transfer'
@@ -182,10 +194,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHaloRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppAdminRoute: typeof AppAdminRoute
   AppHaloRoute: typeof AppHaloRoute
   AppMyBanksRoute: typeof AppMyBanksRoute
   AppPaymentTransferRoute: typeof AppPaymentTransferRoute
@@ -194,6 +214,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAdminRoute: AppAdminRoute,
   AppHaloRoute: AppHaloRoute,
   AppMyBanksRoute: AppMyBanksRoute,
   AppPaymentTransferRoute: AppPaymentTransferRoute,
