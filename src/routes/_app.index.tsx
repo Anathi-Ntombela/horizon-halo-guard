@@ -19,6 +19,16 @@ const PIE_COLORS = ['#1e3a8a', '#3b82f6', '#60a5fa', '#a78bfa', '#f59e0b', '#10b
 
 function HomePage() {
   const { user } = useAuth()
+  const profileQ = useQuery({
+    queryKey: ['profile-me', user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('profiles')
+        .select('first_name,last_name').eq('id', user!.id).maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
   const banksQ = useQuery({
     queryKey: ['banks'],
     queryFn: async () => {
@@ -49,11 +59,14 @@ function HomePage() {
   })
 
   const totalBalance = (banksQ.data ?? []).reduce((s, b) => s + Number(b.current_balance), 0)
+  const firstName = profileQ.data?.first_name?.trim()
+    || user?.email?.split('@')[0]
+    || 'there'
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold">Welcome back{user?.email ? `, ${user.email.split('@')[0]}` : ''}</h1>
+        <h1 className="text-2xl font-bold">Welcome Back, {firstName}</h1>
         <p className="text-muted-foreground text-sm">Here's a snapshot of your finances.</p>
       </div>
 
