@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { ForensicsPanel } from '@/components/halo/ForensicsPanel'
 import {
   fetchHaloStatus, triggerHoneypot, clearHaloEvents, severityColor, relativeTime,
 } from '@/lib/halo'
@@ -152,87 +154,100 @@ function HaloPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="p-6 lg:col-span-1">
-          <p className="text-sm font-semibold mb-2">Threat score</p>
-          <ThreatGauge score={state?.threatScore ?? 0} status={state?.status ?? 'SECURE'} />
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            Updates in real time from sensor events
-          </p>
-        </Card>
+      <Tabs defaultValue="monitor">
+        <TabsList>
+          <TabsTrigger value="monitor">Live monitor</TabsTrigger>
+          <TabsTrigger value="forensics">Forensics</TabsTrigger>
+        </TabsList>
 
-        <div className="lg:col-span-2 grid grid-cols-2 gap-3">
-          <StatCard icon={Activity} label="Events logged" value={state?.totalEvents ?? 0} />
-          <StatCard icon={Eye} label="Honeypot hits" value={state?.honeypotTriggers ?? 0}
-                    accent={(state?.honeypotTriggers ?? 0) > 0 ? 'text-red-600' : ''} />
-          <StatCard icon={AlertTriangle} label="Anomalies" value={state?.anomalyCount ?? 0}
-                    accent={(state?.anomalyCount ?? 0) > 0 ? 'text-amber-600' : ''} />
-          <StatCard icon={Hammer} label="Brute-force" value={state?.bruteForceCount ?? 0}
-                    accent={(state?.bruteForceCount ?? 0) > 0 ? 'text-red-600' : ''} />
-        </div>
-      </div>
+        <TabsContent value="monitor" className="space-y-6 mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card className="p-6 lg:col-span-1">
+              <p className="text-sm font-semibold mb-2">Threat score</p>
+              <ThreatGauge score={state?.threatScore ?? 0} status={state?.status ?? 'SECURE'} />
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Updates in real time from sensor events
+              </p>
+            </Card>
 
-      <Card className="p-6">
-        <p className="text-sm font-semibold mb-3">Threat score (last ~90s)</p>
-        <div className="h-56">
-          <ResponsiveContainer>
-            <LineChart data={timeline} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-              <XAxis dataKey="t" tickFormatter={(v) => `${v}s`} stroke="#94a3b8" fontSize={11} />
-              <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={11} />
-              <Tooltip formatter={(v: number) => [v, 'Score']} labelFormatter={(l) => `t = ${l}s`} />
-              <ReferenceArea y1={0} y2={30} fill="#10b981" fillOpacity={0.05} />
-              <ReferenceArea y1={30} y2={70} fill="#f59e0b" fillOpacity={0.05} />
-              <ReferenceArea y1={70} y2={100} fill="#dc2626" fillOpacity={0.07} />
-              <Line type="monotone" dataKey="score" stroke="#1e3a8a" strokeWidth={2.5}
-                    dot={false} isAnimationActive />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-semibold">Live event feed</p>
-          <Badge variant="outline" className="text-xs">Realtime</Badge>
-        </div>
-        <div className="divide-y max-h-96 overflow-y-auto">
-          {(state?.events ?? []).map((e, i) => (
-            <div key={i} className="py-2.5 flex items-center gap-3">
-              <Badge className={cn('uppercase text-[10px] tracking-wider', severityColor(e.severity))}>
-                {e.severity}
-              </Badge>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{e.event_type.replace(/_/g, ' ')}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {Object.entries(e.metadata ?? {}).slice(0, 3).map(([k, v]) =>
-                    `${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`,
-                  ).join(' · ') || '—'}
-                </p>
-              </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">{relativeTime(e.created_at)}</span>
+            <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+              <StatCard icon={Activity} label="Events logged" value={state?.totalEvents ?? 0} />
+              <StatCard icon={Eye} label="Honeypot hits" value={state?.honeypotTriggers ?? 0}
+                        accent={(state?.honeypotTriggers ?? 0) > 0 ? 'text-red-600' : ''} />
+              <StatCard icon={AlertTriangle} label="Anomalies" value={state?.anomalyCount ?? 0}
+                        accent={(state?.anomalyCount ?? 0) > 0 ? 'text-amber-600' : ''} />
+              <StatCard icon={Hammer} label="Brute-force" value={state?.bruteForceCount ?? 0}
+                        accent={(state?.bruteForceCount ?? 0) > 0 ? 'text-red-600' : ''} />
             </div>
-          ))}
-          {(state?.events ?? []).length === 0 && (
-            <p className="text-sm text-muted-foreground py-6 text-center">No events yet</p>
-          )}
-        </div>
-      </Card>
+          </div>
 
-      <Card className="p-6">
-        <p className="text-sm font-semibold mb-1">Demo controls</p>
-        <p className="text-xs text-muted-foreground mb-4">
-          These actions exist for demonstration only.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={onHoneypot} variant="outline">
-            <Zap className="size-4 mr-1" /> Simulate honeypot trigger
-          </Button>
-          <Button onClick={onClear} variant="outline" disabled={!isAdmin}
-                  title={isAdmin ? '' : 'Admin role required'}>
-            <Trash2 className="size-4 mr-1" /> Clear event log {isAdmin ? '' : '(admin only)'}
-          </Button>
-        </div>
-      </Card>
+          <Card className="p-6">
+            <p className="text-sm font-semibold mb-3">Threat score (last ~90s)</p>
+            <div className="h-56">
+              <ResponsiveContainer>
+                <LineChart data={timeline} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                  <XAxis dataKey="t" tickFormatter={(v) => `${v}s`} stroke="#94a3b8" fontSize={11} />
+                  <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={11} />
+                  <Tooltip formatter={(v: number) => [v, 'Score']} labelFormatter={(l) => `t = ${l}s`} />
+                  <ReferenceArea y1={0} y2={30} fill="#10b981" fillOpacity={0.05} />
+                  <ReferenceArea y1={30} y2={70} fill="#f59e0b" fillOpacity={0.05} />
+                  <ReferenceArea y1={70} y2={100} fill="#dc2626" fillOpacity={0.07} />
+                  <Line type="monotone" dataKey="score" stroke="#1e3a8a" strokeWidth={2.5}
+                        dot={false} isAnimationActive />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold">Live event feed</p>
+              <Badge variant="outline" className="text-xs">Realtime</Badge>
+            </div>
+            <div className="divide-y max-h-96 overflow-y-auto">
+              {(state?.events ?? []).map((e, i) => (
+                <div key={i} className="py-2.5 flex items-center gap-3">
+                  <Badge className={cn('uppercase text-[10px] tracking-wider', severityColor(e.severity))}>
+                    {e.severity}
+                  </Badge>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{e.event_type.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {Object.entries(e.metadata ?? {}).slice(0, 3).map(([k, v]) =>
+                        `${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`,
+                      ).join(' · ') || '—'}
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{relativeTime(e.created_at)}</span>
+                </div>
+              ))}
+              {(state?.events ?? []).length === 0 && (
+                <p className="text-sm text-muted-foreground py-6 text-center">No events yet</p>
+              )}
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <p className="text-sm font-semibold mb-1">Demo controls</p>
+            <p className="text-xs text-muted-foreground mb-4">
+              These actions exist for demonstration only. Critical events email all admins.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={onHoneypot} variant="outline">
+                <Zap className="size-4 mr-1" /> Simulate honeypot trigger
+              </Button>
+              <Button onClick={onClear} variant="outline" disabled={!isAdmin}
+                      title={isAdmin ? '' : 'Admin role required'}>
+                <Trash2 className="size-4 mr-1" /> Clear event log {isAdmin ? '' : '(admin only)'}
+              </Button>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="forensics" className="mt-4">
+          <ForensicsPanel />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
