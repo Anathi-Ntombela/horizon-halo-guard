@@ -20,10 +20,13 @@ export type Database = {
           available_balance: number
           created_at: string
           current_balance: number
+          funding_source_url: string | null
           id: string
           mask: string
           name: string
           official_name: string | null
+          plaid_access_token: string | null
+          plaid_account_id: string | null
           shareable_id: string
           subtype: string | null
           user_id: string
@@ -33,10 +36,13 @@ export type Database = {
           available_balance?: number
           created_at?: string
           current_balance?: number
+          funding_source_url?: string | null
           id?: string
           mask: string
           name: string
           official_name?: string | null
+          plaid_access_token?: string | null
+          plaid_account_id?: string | null
           shareable_id?: string
           subtype?: string | null
           user_id: string
@@ -46,10 +52,13 @@ export type Database = {
           available_balance?: number
           created_at?: string
           current_balance?: number
+          funding_source_url?: string | null
           id?: string
           mask?: string
           name?: string
           official_name?: string | null
+          plaid_access_token?: string | null
+          plaid_account_id?: string | null
           shareable_id?: string
           subtype?: string | null
           user_id?: string
@@ -90,6 +99,7 @@ export type Database = {
           created_at: string
           dob: string | null
           dwolla_customer_id: string | null
+          dwolla_customer_url: string | null
           email: string
           first_name: string
           id: string
@@ -105,6 +115,7 @@ export type Database = {
           created_at?: string
           dob?: string | null
           dwolla_customer_id?: string | null
+          dwolla_customer_url?: string | null
           email?: string
           first_name?: string
           id: string
@@ -120,6 +131,7 @@ export type Database = {
           created_at?: string
           dob?: string | null
           dwolla_customer_id?: string | null
+          dwolla_customer_url?: string | null
           email?: string
           first_name?: string
           id?: string
