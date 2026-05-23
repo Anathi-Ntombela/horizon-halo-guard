@@ -18,11 +18,9 @@ export const Route = createFileRoute('/_app/admin')({
   beforeLoad: async () => {
     const { data: sess } = await supabase.auth.getSession()
     if (!sess.session) throw redirect({ to: '/sign-in' })
-    const { data: ok } = await supabase.rpc('has_role', {
-      _user_id: sess.session.user.id, _role: 'admin',
-    })
-    if (ok) return
-    // Allow access when no admin exists yet — user can claim the first admin slot.
+    const { data: isSuper } = await supabase.rpc('is_super_admin', { _user_id: sess.session.user.id })
+    if (isSuper) return
+    // Allow access when no admin exists yet — user can claim the super-admin slot.
     const { count } = await supabase.from('user_roles').select('*', { count: 'exact', head: true }).eq('role', 'admin')
     if ((count ?? 0) > 0) throw redirect({ to: '/' })
   },
