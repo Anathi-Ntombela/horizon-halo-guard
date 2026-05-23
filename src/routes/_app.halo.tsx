@@ -254,6 +254,10 @@ function HaloPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="architecture" className="mt-4">
+          <LayersPanel />
+        </TabsContent>
+
         <TabsContent value="forensics" className="mt-4">
           <ForensicsPanel />
         </TabsContent>
