@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useServerFn } from '@tanstack/react-start'
 import { Shield, ShieldOff, UserCog } from 'lucide-react'
@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
-import { adminListUsers, adminSetRole } from '@/lib/banking.functions'
+import { useAuth } from '@/lib/auth-context'
+import { adminListUsers, adminSetRole, bootstrapAdmin } from '@/lib/banking.functions'
 
 export const Route = createFileRoute('/_app/admin')({
   beforeLoad: async () => {
@@ -20,19 +21,26 @@ export const Route = createFileRoute('/_app/admin')({
     const { data: ok } = await supabase.rpc('has_role', {
       _user_id: sess.session.user.id, _role: 'admin',
     })
-    if (!ok) throw redirect({ to: '/' })
+    if (ok) return
+    // Allow access when no admin exists yet — user can claim the first admin slot.
+    const { count } = await supabase.from('user_roles').select('*', { count: 'exact', head: true }).eq('role', 'admin')
+    if ((count ?? 0) > 0) throw redirect({ to: '/' })
   },
   component: AdminPage,
 })
 
 function AdminPage() {
   const qc = useQueryClient()
+  const { isAdmin } = useAuth()
+  const nav = useNavigate()
   const list = useServerFn(adminListUsers)
   const setRole = useServerFn(adminSetRole)
+  const bootstrap = useServerFn(bootstrapAdmin)
 
   const usersQ = useQuery({
     queryKey: ['admin-users'],
     queryFn: () => list(),
+    enabled: isAdmin,
   })
 
   const mut = useMutation({
@@ -45,13 +53,48 @@ function AdminPage() {
     onError: (e: any) => toast.error(e.message ?? 'Failed'),
   })
 
+  const claim = useMutation({
+    mutationFn: () => bootstrap(),
+    onSuccess: async (r) => {
+      if (r.promoted) {
+        toast.success('You are now the HORIZON administrator')
+        // refresh auth context isAdmin flag
+        await supabase.auth.refreshSession()
+        nav({ to: '/admin', replace: true })
+        window.location.reload()
+      } else {
+        toast.error('Admin already exists — ask them to grant you the role')
+      }
+    },
+    onError: (e: any) => toast.error(e.message ?? 'Could not claim admin'),
+  })
+
+  if (!isAdmin) {
+    return (
+      <div className="max-w-xl mx-auto mt-10">
+        <Card className="p-8 text-center space-y-4">
+          <Shield className="size-12 text-primary mx-auto" />
+          <h1 className="text-2xl font-bold">Claim admin role</h1>
+          <p className="text-sm text-muted-foreground">
+            No admin has been set up for this HORIZON instance yet. As the first
+            administrator you'll receive HALO security alerts by email and gain
+            access to the HALO Security console.
+          </p>
+          <Button onClick={() => claim.mutate()} disabled={claim.isPending} size="lg">
+            {claim.isPending ? 'Claiming…' : 'Make me the first admin'}
+          </Button>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <UserCog className="size-7 text-primary" />
         <div>
           <h1 className="text-2xl font-bold">Admin console</h1>
-          <p className="text-sm text-muted-foreground">Manage user roles. Admins can clear HALO logs and receive critical alerts.</p>
+          <p className="text-sm text-muted-foreground">Manage user roles. Admins can clear HALO logs and receive critical alerts by email.</p>
         </div>
       </div>
 
@@ -68,7 +111,7 @@ function AdminPage() {
           </TableHeader>
           <TableBody>
             {(usersQ.data ?? []).map((u: any) => {
-              const isAdmin = u.roles.includes('admin')
+              const userIsAdmin = u.roles.includes('admin')
               return (
                 <TableRow key={u.id}>
                   <TableCell className="font-medium">{u.first_name} {u.last_name}</TableCell>
@@ -86,11 +129,11 @@ function AdminPage() {
                   <TableCell className="text-right">
                     <Button
                       size="sm"
-                      variant={isAdmin ? 'outline' : 'default'}
+                      variant={userIsAdmin ? 'outline' : 'default'}
                       disabled={mut.isPending}
-                      onClick={() => mut.mutate({ target_user_id: u.id, grant: !isAdmin })}
+                      onClick={() => mut.mutate({ target_user_id: u.id, grant: !userIsAdmin })}
                     >
-                      {isAdmin
+                      {userIsAdmin
                         ? <><ShieldOff className="size-3.5 mr-1" /> Revoke admin</>
                         : <><Shield className="size-3.5 mr-1" /> Make admin</>}
                     </Button>
