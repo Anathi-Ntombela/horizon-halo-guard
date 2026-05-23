@@ -29,7 +29,7 @@ export const Route = createFileRoute('/_app/admin')({
 
 function AdminPage() {
   const qc = useQueryClient()
-  const { isAdmin } = useAuth()
+  const { isSuperAdmin: isAdmin } = useAuth()
   const nav = useNavigate()
   const list = useServerFn(adminListUsers)
   const setRole = useServerFn(adminSetRole)
