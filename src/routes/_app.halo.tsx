@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ForensicsPanel } from '@/components/halo/ForensicsPanel'
+import { LayersPanel } from '@/components/halo/LayersPanel'
 import {
   fetchHaloStatus, triggerHoneypot, clearHaloEvents, severityColor, relativeTime,
 } from '@/lib/halo'
@@ -165,6 +166,7 @@ function HaloPage() {
       <Tabs defaultValue="monitor">
         <TabsList>
           <TabsTrigger value="monitor">Live monitor</TabsTrigger>
+          <TabsTrigger value="architecture">Architecture</TabsTrigger>
           <TabsTrigger value="forensics">Forensics</TabsTrigger>
         </TabsList>
 
@@ -250,6 +252,10 @@ function HaloPage() {
               </Button>
             </div>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="architecture" className="mt-4">
+          <LayersPanel />
         </TabsContent>
 
         <TabsContent value="forensics" className="mt-4">

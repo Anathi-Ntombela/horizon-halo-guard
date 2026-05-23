@@ -181,8 +181,8 @@ export const adminSetRole = createServerFn({ method: 'POST' })
     grant: z.boolean(),
   }).parse(d))
   .handler(async ({ data, context }) => {
-    const { data: roleCheck } = await supabaseAdmin.rpc('has_role', { _user_id: context.userId, _role: 'admin' })
-    if (!roleCheck) throw new Error('Admin role required')
+    const { data: isSuper } = await supabaseAdmin.rpc('is_super_admin', { _user_id: context.userId })
+    if (!isSuper) throw new Error('Only the first administrator can manage admins')
 
     if (data.grant) {
       await supabaseAdmin.from('user_roles').upsert(
