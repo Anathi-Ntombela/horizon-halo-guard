@@ -4,6 +4,12 @@ export type HaloEventType =
   | 'AUTH_FAILURE' | 'AUTH_SUCCESS' | 'SESSION_CREATED'
   | 'RAPID_ACCOUNT_LINK' | 'ANOMALOUS_TRANSFER'
   | 'HONEYPOT_TRIGGER' | 'SUSPICIOUS_PATTERN' | 'BRUTE_FORCE_DETECTED'
+  // Layer 1 — sensor array
+  | 'SENSOR_THERMAL_SPIKE' | 'SENSOR_TAMPER' | 'SENSOR_POWER_SPIKE' | 'SENSOR_ENVIRONMENT'
+  // Layer 2 — honeypot network
+  | 'HONEYPOT_FAKE_CRED' | 'HONEYPOT_DECOY_SERVER' | 'HONEYPOT_FAKE_FILE'
+  // Layer 3 — AI engine
+  | 'AI_ANOMALY_CLUSTER' | 'AI_PREDICTIVE_RISK' | 'AI_AUTO_RESPONSE'
 
 export async function logHaloEvent(
   type: HaloEventType,
