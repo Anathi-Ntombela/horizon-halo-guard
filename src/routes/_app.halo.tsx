@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Shield, AlertTriangle, Activity, Eye, Hammer, Trash2, Zap,
@@ -21,6 +21,14 @@ import {
 } from '@/lib/halo'
 
 export const Route = createFileRoute('/_app/halo')({
+  beforeLoad: async () => {
+    const { data: sess } = await supabase.auth.getSession()
+    if (!sess.session) throw redirect({ to: '/sign-in' })
+    const { data: ok } = await supabase.rpc('has_role', {
+      _user_id: sess.session.user.id, _role: 'admin',
+    })
+    if (!ok) throw redirect({ to: '/' })
+  },
   component: HaloPage,
 })
 

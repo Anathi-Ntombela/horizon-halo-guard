@@ -1,5 +1,10 @@
-export function formatCurrency(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+export function formatCurrency(n: number, currency: string = 'USD') {
+  const locale = currency === 'ZAR' ? 'en-ZA' : 'en-US'
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(n)
+  } catch {
+    return `${currency} ${n.toFixed(2)}`
+  }
 }
 
 export function categoryColor(cat: string) {
@@ -15,3 +20,10 @@ export function categoryColor(cat: string) {
   }
   return map[cat] ?? 'bg-slate-100 text-slate-700'
 }
+
+// South African banks supported by HORIZON manual-add flow.
+export const SA_BANKS = [
+  'Standard Bank', 'FNB (First National Bank)', 'Absa', 'Nedbank',
+  'Capitec Bank', 'Investec', 'Discovery Bank', 'TymeBank',
+  'African Bank', 'Bank Zero',
+] as const
