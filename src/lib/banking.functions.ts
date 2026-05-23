@@ -195,3 +195,40 @@ export const adminSetRole = createServerFn({ method: 'POST' })
     }
     return { ok: true }
   })
+
+// 7. Manually add a bank account (e.g. South African banks not supported by Plaid sandbox).
+export const addManualBank = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    name: z.string().min(2).max(80),
+    official_name: z.string().min(2).max(120),
+    mask: z.string().regex(/^\d{4}$/, 'Last 4 digits required'),
+    subtype: z.enum(['checking', 'savings', 'credit']),
+    currency: z.enum(['USD', 'ZAR']).default('ZAR'),
+    opening_balance: z.coerce.number().min(0).max(10_000_000).default(0),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId, supabase } = context
+    const { data: bank, error } = await supabase.from('banks').insert({
+      user_id: userId,
+      name: data.name,
+      official_name: data.official_name,
+      mask: data.mask,
+      subtype: data.subtype,
+      account_type: data.subtype === 'credit' ? 'credit' : 'depository',
+      current_balance: data.opening_balance,
+      available_balance: data.opening_balance,
+      currency: data.currency,
+    }).select('id').single()
+    if (error) throw new Error(error.message)
+    return { id: bank.id }
+  })
+
+// 8. Bootstrap admin — promotes the caller to admin ONLY if no admin exists yet.
+export const bootstrapAdmin = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await supabaseAdmin.rpc('bootstrap_admin', { _user_id: context.userId })
+    if (error) throw new Error(error.message)
+    return { promoted: !!data }
+  })
