@@ -22,7 +22,7 @@ const NAV = [
   { to: '/my-banks',           label: 'My Banks',        icon: Landmark, adminOnly: false },
   { to: '/transaction-history',label: 'Transactions',    icon: History,  adminOnly: false },
   { to: '/payment-transfer',   label: 'Payment Transfer',icon: Send,     adminOnly: false },
-  { to: '/halo',               label: 'HALO Security',   icon: Shield,   adminOnly: false },
+  { to: '/halo',               label: 'HALO Security',   icon: Shield,   adminOnly: true  },
   { to: '/admin',              label: 'Admin',           icon: UserCog,  adminOnly: true  },
 ] as const
 
