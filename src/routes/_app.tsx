@@ -23,7 +23,7 @@ const NAV = [
   { to: '/transaction-history',label: 'Transactions',    icon: History,  adminOnly: false },
   { to: '/payment-transfer',   label: 'Payment Transfer',icon: Send,     adminOnly: false },
   { to: '/halo',               label: 'HALO Security',   icon: Shield,   adminOnly: true  },
-  { to: '/admin',              label: 'Admin',           icon: UserCog,  adminOnly: true  },
+  { to: '/admin',              label: 'Admin',           icon: UserCog,  adminOnly: false },
 ] as const
 
 function AppLayout() {
