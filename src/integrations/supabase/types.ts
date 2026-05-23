@@ -19,6 +19,7 @@ export type Database = {
           account_type: string
           available_balance: number
           created_at: string
+          currency: string
           current_balance: number
           funding_source_url: string | null
           id: string
@@ -35,6 +36,7 @@ export type Database = {
           account_type?: string
           available_balance?: number
           created_at?: string
+          currency?: string
           current_balance?: number
           funding_source_url?: string | null
           id?: string
@@ -51,6 +53,7 @@ export type Database = {
           account_type?: string
           available_balance?: number
           created_at?: string
+          currency?: string
           current_balance?: number
           funding_source_url?: string | null
           id?: string
@@ -216,6 +219,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bootstrap_admin: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
