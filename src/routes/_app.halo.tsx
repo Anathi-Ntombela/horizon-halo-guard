@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ForensicsPanel } from '@/components/halo/ForensicsPanel'
+import { LayersPanel } from '@/components/halo/LayersPanel'
 import {
   fetchHaloStatus, triggerHoneypot, clearHaloEvents, severityColor, relativeTime,
 } from '@/lib/halo'
