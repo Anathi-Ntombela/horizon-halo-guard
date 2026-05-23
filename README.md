@@ -187,10 +187,39 @@ record a `SUSPICIOUS_PATTERN` row noting that email delivery was skipped.
 
 ---
 
-## Stack
+## Tech stack
 
-- React 19 + TanStack Router + TanStack Query + Vite 7
-- Tailwind v4 + ShadCN UI
-- Supabase (Postgres + Auth + Realtime + Edge Functions) via Lovable Cloud
-- Plaid sandbox, Dwolla sandbox, Resend (via Lovable connector gateway)
-- React Hook Form + Zod for every form, server and client
+### HORIZON (banking app)
+
+| Layer            | Choice                                                                  |
+|------------------|-------------------------------------------------------------------------|
+| Framework        | React 19 + TanStack Start / TanStack Router (file-based, SSR-ready)     |
+| Data fetching    | TanStack Query (loaders + hooks, cache invalidation on auth changes)    |
+| Server logic     | `createServerFn` (TanStack) — `plaidExchange`, `dwollaTransfer`, `internalTransfer`, `addManualBank`, `adminListUsers`, `adminSetRole`, `bootstrapAdmin` |
+| Styling          | Tailwind v4 + ShadCN UI (semantic tokens in `src/styles.css`)           |
+| Forms            | React Hook Form + Zod (every form, client and server validated)         |
+| Auth             | Supabase Auth (email/password) with HttpOnly session via SSR cookies    |
+| Database         | Supabase Postgres — `profiles`, `banks`, `transactions`, `user_roles`   |
+| Access control   | Row-Level Security on every user-owned table; `has_role()` RPC for roles |
+| Payments (US)    | Plaid Link (sandbox) + Dwolla (sandbox ACH)                             |
+| Payments (ZA)    | Manual bank add (Standard Bank, FNB, Absa, Nedbank, Capitec, Investec, Discovery, TymeBank, African Bank, Bank Zero) — internal ZAR transfers |
+| Currency         | `Intl.NumberFormat` per-bank — USD ($) and ZAR (R) supported            |
+| Build / runtime  | Vite 7, Cloudflare Worker SSR target                                    |
+
+### HALO (security layer)
+
+| Layer            | Choice                                                                  |
+|------------------|-------------------------------------------------------------------------|
+| Event store      | `halo_events` table (Postgres) — type, severity, JSON metadata, user id |
+| Ingestion        | `halo-log` edge function — Zod-validated, brute-force detection         |
+| Decoy endpoint   | `halo-honeypot` edge function — returns plausible fake success           |
+| Aggregation      | `halo-status` edge function — 0-100 threat score with time decay        |
+| Admin actions    | `halo-clear` edge function — purge gated by `has_role('admin')`         |
+| Real-time push   | Supabase Realtime (`postgres_changes` channel on `halo_events`)         |
+| Dashboard UI     | React + Recharts (arc gauge SVG, timeline, distribution bars)           |
+| Forensics        | Recharts bars + JSON export of filtered slice                           |
+| Alerting         | Resend via the Lovable connector gateway — admin-only HTML emails       |
+| Role storage     | `user_roles` table + `has_role(uid, role)` SECURITY DEFINER function    |
+| Bootstrap admin  | `bootstrap_admin(uid)` — server-only function, succeeds only when no admin exists |
+| Detection rules  | Brute-force (5× AUTH_FAILURE / 120s), anomalous transfer (> $10,000)    |
+
