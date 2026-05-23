@@ -166,6 +166,7 @@ function HaloPage() {
       <Tabs defaultValue="monitor">
         <TabsList>
           <TabsTrigger value="monitor">Live monitor</TabsTrigger>
+          <TabsTrigger value="architecture">Architecture</TabsTrigger>
           <TabsTrigger value="forensics">Forensics</TabsTrigger>
         </TabsList>
 
