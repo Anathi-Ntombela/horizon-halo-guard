@@ -17,17 +17,18 @@ export const Route = createFileRoute('/_app')({
   component: AppLayout,
 })
 
-const NAV = [
-  { to: '/',                   label: 'Home',            icon: Home,     adminOnly: false },
-  { to: '/my-banks',           label: 'My Banks',        icon: Landmark, adminOnly: false },
-  { to: '/transaction-history',label: 'Transactions',    icon: History,  adminOnly: false },
-  { to: '/payment-transfer',   label: 'Payment Transfer',icon: Send,     adminOnly: false },
-  { to: '/halo',               label: 'HALO Security',   icon: Shield,   adminOnly: true  },
-  { to: '/admin',              label: 'Admin',           icon: UserCog,  adminOnly: false },
-] as const
+type NavItem = { to: string; label: string; icon: any; show: (a: { isAdmin: boolean; isSuperAdmin: boolean; anyAdminExists: boolean }) => boolean }
+const NAV: NavItem[] = [
+  { to: '/',                   label: 'Home',            icon: Home,     show: () => true },
+  { to: '/my-banks',           label: 'My Banks',        icon: Landmark, show: () => true },
+  { to: '/transaction-history',label: 'Transactions',    icon: History,  show: () => true },
+  { to: '/payment-transfer',   label: 'Payment Transfer',icon: Send,     show: () => true },
+  { to: '/halo',               label: 'HALO Security',   icon: Shield,   show: (a) => a.isAdmin },
+  { to: '/admin',              label: 'Admin',           icon: UserCog,  show: (a) => a.isSuperAdmin || !a.anyAdminExists },
+]
 
 function AppLayout() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isSuperAdmin, anyAdminExists } = useAuth()
   const nav = useNavigate()
   const { location } = useRouterState()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -46,7 +47,7 @@ function AppLayout() {
         <span className="text-lg font-bold tracking-tight">HORIZON</span>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV.filter(n => !n.adminOnly || isAdmin).map(({ to, label, icon: Icon }) => {
+        {NAV.filter(n => n.show({ isAdmin, isSuperAdmin, anyAdminExists })).map(({ to, label, icon: Icon }) => {
           const active = location.pathname === to
           return (
             <Link key={to} to={to}
