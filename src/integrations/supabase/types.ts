@@ -68,6 +68,30 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_contexts: {
+        Row: {
+          blocked_until: string
+          context: string
+          created_at: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          blocked_until: string
+          context: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          blocked_until?: string
+          context?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       halo_events: {
         Row: {
           created_at: string
@@ -192,6 +216,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      transfer_proceed_tokens: {
+        Row: {
+          consumed_at: string | null
+          context_hash: string
+          created_at: string
+          expires_at: string
+          flags: Json
+          id: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          context_hash: string
+          created_at?: string
+          expires_at?: string
+          flags?: Json
+          id?: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          context_hash?: string
+          created_at?: string
+          expires_at?: string
+          flags?: Json
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

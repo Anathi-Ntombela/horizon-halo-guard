@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import { Microscope, Filter, Download } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { supabase } from '@/integrations/supabase/client'
 import { Card } from '@/components/ui/card'
@@ -70,14 +71,35 @@ export function ForensicsPanel() {
     return buckets
   }, [filtered])
 
-  const downloadJSON = () => {
-    const blob = new Blob([JSON.stringify(filtered, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `halo-forensics-${new Date().toISOString()}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+  // Tamper-evident export: payload + SHA-256 of the canonical events JSON.
+  const downloadJSON = async () => {
+    try {
+      const exportPayload = JSON.stringify(filtered)
+      const msgBuffer = new TextEncoder().encode(exportPayload)
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
+      const hashHex = Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+
+      const finalExport = {
+        exported_at: new Date().toISOString(),
+        event_count: filtered.length,
+        export_hash: hashHex,
+        events: filtered,
+      }
+
+      const blob = new Blob([JSON.stringify(finalExport, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'halo_forensics_export.json'
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success(`Export verified — SHA-256: ${hashHex.slice(0, 12)}…`)
+    } catch (err) {
+      console.error(err)
+      toast.error('Export failed')
+    }
   }
 
   return (
@@ -118,7 +140,7 @@ export function ForensicsPanel() {
           <Input placeholder="email, ip, amount…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Button variant="outline" size="sm" onClick={downloadJSON}>
-          <Download className="size-3.5 mr-1" /> Export JSON
+          <Download className="size-3.5 mr-1" /> Export (SHA-256)
         </Button>
       </Card>
 

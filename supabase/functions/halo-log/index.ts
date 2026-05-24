@@ -1,5 +1,6 @@
 // HALO event ingestion. Writes a security event, runs brute-force detection,
-// and dispatches admin email alerts when a critical event is recorded.
+// inserts a blocked_contexts row after BRUTE_FORCE_DETECTED, and dispatches
+// admin email alerts when a critical event is recorded.
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { z } from 'npm:zod@3.23.8'
@@ -7,6 +8,8 @@ import { z } from 'npm:zod@3.23.8'
 const EVENT_TYPES = [
   'AUTH_FAILURE', 'AUTH_SUCCESS', 'SESSION_CREATED', 'RAPID_ACCOUNT_LINK',
   'ANOMALOUS_TRANSFER', 'HONEYPOT_TRIGGER', 'SUSPICIOUS_PATTERN', 'BRUTE_FORCE_DETECTED',
+  'SOCIAL_ENGINEERING_VECTOR',
+  'MFA_FAILURE', 'MFA_ENROLLED', 'MFA_VERIFIED',
 ] as const
 
 const BodySchema = z.object({
@@ -24,13 +27,16 @@ const DEFAULT_SEVERITY: Record<string, 'low' | 'medium' | 'high' | 'critical'> =
   HONEYPOT_TRIGGER: 'critical',
   SUSPICIOUS_PATTERN: 'high',
   BRUTE_FORCE_DETECTED: 'critical',
+  SOCIAL_ENGINEERING_VECTOR: 'high',
+  MFA_FAILURE: 'high',
+  MFA_ENROLLED: 'low',
+  MFA_VERIFIED: 'low',
 }
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 
-// Dispatch a HALO alert email to every admin user. Best-effort; never throws.
 async function alertAdmins(event: {
   type: string; severity: string; metadata: Record<string, unknown>; user_id: string | null
 }) {
@@ -55,7 +61,6 @@ async function alertAdmins(event: {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 
-    // Preferred: Resend via Lovable connector gateway (no Resend account needed for the user).
     if (LOVABLE_API_KEY && RESEND_API_KEY) {
       await fetch('https://connector-gateway.lovable.dev/resend/emails', {
         method: 'POST',
@@ -73,7 +78,6 @@ async function alertAdmins(event: {
       })
       console.log(`[HALO] critical alert emailed to ${recipients.length} admin(s)`)
     } else {
-      // No email provider configured — record the intent in the event log itself.
       await admin.from('halo_events').insert({
         event_type: 'SUSPICIOUS_PATTERN',
         severity: 'low',
@@ -114,11 +118,12 @@ Deno.serve(async (req) => {
       event_type: type, severity, metadata, user_id: userId,
     })
 
-    if (type === 'AUTH_FAILURE') {
+    // Brute-force detection — combines AUTH_FAILURE and MFA_FAILURE in the same window.
+    if (type === 'AUTH_FAILURE' || type === 'MFA_FAILURE') {
       const since = new Date(Date.now() - 120_000).toISOString()
       const email = (metadata as any)?.email
       let q = admin.from('halo_events').select('id', { count: 'exact', head: true })
-        .eq('event_type', 'AUTH_FAILURE').gte('created_at', since)
+        .in('event_type', ['AUTH_FAILURE', 'MFA_FAILURE']).gte('created_at', since)
       if (email) q = q.eq('metadata->>email', email)
       const { count } = await q
       if ((count ?? 0) >= 5) {
@@ -126,12 +131,23 @@ Deno.serve(async (req) => {
           .eq('event_type', 'BRUTE_FORCE_DETECTED')
           .gte('created_at', new Date(Date.now() - 60_000).toISOString())
         if ((recent.count ?? 0) === 0) {
+          const blockMeta = { context: 'login', email, failures: count }
           await admin.from('halo_events').insert({
-            event_type: 'BRUTE_FORCE_DETECTED', severity: 'critical',
-            metadata: { context: 'login', email, failures: count },
+            event_type: 'BRUTE_FORCE_DETECTED', severity: 'critical', metadata: blockMeta,
           })
-          await alertAdmins({ type: 'BRUTE_FORCE_DETECTED', severity: 'critical',
-            metadata: { context: 'login', email, failures: count }, user_id: userId })
+          // Rate-limit the offending email (and/or IP if we ever capture it) for 15 minutes.
+          if (email) {
+            const blockedUntil = new Date(Date.now() + 15 * 60_000).toISOString()
+            await admin.from('blocked_contexts').insert({
+              context: email,
+              blocked_until: blockedUntil,
+              reason: `${count} failed attempts in 120s`,
+            })
+          }
+          await alertAdmins({
+            type: 'BRUTE_FORCE_DETECTED', severity: 'critical',
+            metadata: blockMeta, user_id: userId,
+          })
         }
       }
     }

@@ -4,6 +4,8 @@ export type HaloEventType =
   | 'AUTH_FAILURE' | 'AUTH_SUCCESS' | 'SESSION_CREATED'
   | 'RAPID_ACCOUNT_LINK' | 'ANOMALOUS_TRANSFER'
   | 'HONEYPOT_TRIGGER' | 'SUSPICIOUS_PATTERN' | 'BRUTE_FORCE_DETECTED'
+  | 'SOCIAL_ENGINEERING_VECTOR'
+  | 'MFA_FAILURE' | 'MFA_ENROLLED' | 'MFA_VERIFIED'
   // Layer 1 — sensor array
   | 'SENSOR_THERMAL_SPIKE' | 'SENSOR_TAMPER' | 'SENSOR_POWER_SPIKE' | 'SENSOR_ENVIRONMENT'
   // Layer 2 — honeypot network
@@ -38,12 +40,8 @@ export async function fetchHaloStatus() {
 }
 
 export async function triggerHoneypot() {
-  // Direct GET to the honeypot edge function
-  const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/halo-honeypot`
-  await fetch(url, {
-    method: 'GET',
-    headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string },
-  })
+  // Calls the public-facing decoy path. Any hit is silently logged as a critical event.
+  await fetch('/api/internal/accounts/export', { method: 'GET' }).catch(() => {})
 }
 
 export async function clearHaloEvents() {
@@ -69,4 +67,19 @@ export function relativeTime(iso: string) {
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h ago`
   return `${Math.floor(h / 24)}d ago`
+}
+
+// Human-readable labels used by the Incident Timeline.
+export const EVENT_LABELS: Record<string, string> = {
+  AUTH_FAILURE: 'Failed sign-in attempt detected',
+  AUTH_SUCCESS: 'Successful sign-in',
+  SESSION_CREATED: 'New session established',
+  BRUTE_FORCE_DETECTED: 'Brute force threshold crossed — account blocked',
+  HONEYPOT_TRIGGER: 'Decoy endpoint accessed — active probe detected',
+  ANOMALOUS_TRANSFER: 'High-value transfer flagged for review',
+  SOCIAL_ENGINEERING_VECTOR: 'Transfer matched social engineering pattern',
+  SUSPICIOUS_PATTERN: 'Suspicious activity pattern recorded',
+  MFA_FAILURE: 'Multi-factor authentication failed',
+  MFA_ENROLLED: 'MFA successfully enrolled',
+  MFA_VERIFIED: 'MFA verification successful',
 }

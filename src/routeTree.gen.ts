@@ -11,13 +11,18 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as SecurityRouteImport } from './routes/security'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as MfaVerifyRouteImport } from './routes/mfa.verify'
+import { Route as MfaSetupRouteImport } from './routes/mfa.setup'
 import { Route as AppTransactionHistoryRouteImport } from './routes/_app.transaction-history'
 import { Route as AppPaymentTransferRouteImport } from './routes/_app.payment-transfer'
 import { Route as AppMyBanksRouteImport } from './routes/_app.my-banks'
 import { Route as AppHaloRouteImport } from './routes/_app.halo'
 import { Route as AppAdminRouteImport } from './routes/_app.admin'
+import { Route as ApiSecurityScanReportRouteImport } from './routes/api.security.scan-report'
+import { Route as ApiInternalAccountsExportRouteImport } from './routes/api.internal.accounts.export'
 
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
@@ -29,6 +34,11 @@ const SignInRoute = SignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SecurityRoute = SecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -37,6 +47,16 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const MfaVerifyRoute = MfaVerifyRouteImport.update({
+  id: '/mfa/verify',
+  path: '/mfa/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MfaSetupRoute = MfaSetupRouteImport.update({
+  id: '/mfa/setup',
+  path: '/mfa/setup',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppTransactionHistoryRoute = AppTransactionHistoryRouteImport.update({
   id: '/transaction-history',
@@ -63,9 +83,21 @@ const AppAdminRoute = AppAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiSecurityScanReportRoute = ApiSecurityScanReportRouteImport.update({
+  id: '/api/security/scan-report',
+  path: '/api/security/scan-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInternalAccountsExportRoute =
+  ApiInternalAccountsExportRouteImport.update({
+    id: '/api/internal/accounts/export',
+    path: '/api/internal/accounts/export',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/security': typeof SecurityRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/admin': typeof AppAdminRoute
@@ -73,8 +105,13 @@ export interface FileRoutesByFullPath {
   '/my-banks': typeof AppMyBanksRoute
   '/payment-transfer': typeof AppPaymentTransferRoute
   '/transaction-history': typeof AppTransactionHistoryRoute
+  '/mfa/setup': typeof MfaSetupRoute
+  '/mfa/verify': typeof MfaVerifyRoute
+  '/api/security/scan-report': typeof ApiSecurityScanReportRoute
+  '/api/internal/accounts/export': typeof ApiInternalAccountsExportRoute
 }
 export interface FileRoutesByTo {
+  '/security': typeof SecurityRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/admin': typeof AppAdminRoute
@@ -82,11 +119,16 @@ export interface FileRoutesByTo {
   '/my-banks': typeof AppMyBanksRoute
   '/payment-transfer': typeof AppPaymentTransferRoute
   '/transaction-history': typeof AppTransactionHistoryRoute
+  '/mfa/setup': typeof MfaSetupRoute
+  '/mfa/verify': typeof MfaVerifyRoute
   '/': typeof AppIndexRoute
+  '/api/security/scan-report': typeof ApiSecurityScanReportRoute
+  '/api/internal/accounts/export': typeof ApiInternalAccountsExportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/security': typeof SecurityRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/_app/admin': typeof AppAdminRoute
@@ -94,12 +136,17 @@ export interface FileRoutesById {
   '/_app/my-banks': typeof AppMyBanksRoute
   '/_app/payment-transfer': typeof AppPaymentTransferRoute
   '/_app/transaction-history': typeof AppTransactionHistoryRoute
+  '/mfa/setup': typeof MfaSetupRoute
+  '/mfa/verify': typeof MfaVerifyRoute
   '/_app/': typeof AppIndexRoute
+  '/api/security/scan-report': typeof ApiSecurityScanReportRoute
+  '/api/internal/accounts/export': typeof ApiInternalAccountsExportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/security'
     | '/sign-in'
     | '/sign-up'
     | '/admin'
@@ -107,8 +154,13 @@ export interface FileRouteTypes {
     | '/my-banks'
     | '/payment-transfer'
     | '/transaction-history'
+    | '/mfa/setup'
+    | '/mfa/verify'
+    | '/api/security/scan-report'
+    | '/api/internal/accounts/export'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/security'
     | '/sign-in'
     | '/sign-up'
     | '/admin'
@@ -116,10 +168,15 @@ export interface FileRouteTypes {
     | '/my-banks'
     | '/payment-transfer'
     | '/transaction-history'
+    | '/mfa/setup'
+    | '/mfa/verify'
     | '/'
+    | '/api/security/scan-report'
+    | '/api/internal/accounts/export'
   id:
     | '__root__'
     | '/_app'
+    | '/security'
     | '/sign-in'
     | '/sign-up'
     | '/_app/admin'
@@ -127,13 +184,22 @@ export interface FileRouteTypes {
     | '/_app/my-banks'
     | '/_app/payment-transfer'
     | '/_app/transaction-history'
+    | '/mfa/setup'
+    | '/mfa/verify'
     | '/_app/'
+    | '/api/security/scan-report'
+    | '/api/internal/accounts/export'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  SecurityRoute: typeof SecurityRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
+  MfaSetupRoute: typeof MfaSetupRoute
+  MfaVerifyRoute: typeof MfaVerifyRoute
+  ApiSecurityScanReportRoute: typeof ApiSecurityScanReportRoute
+  ApiInternalAccountsExportRoute: typeof ApiInternalAccountsExportRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -152,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/security': {
+      id: '/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof SecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -165,6 +238,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/mfa/verify': {
+      id: '/mfa/verify'
+      path: '/mfa/verify'
+      fullPath: '/mfa/verify'
+      preLoaderRoute: typeof MfaVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mfa/setup': {
+      id: '/mfa/setup'
+      path: '/mfa/setup'
+      fullPath: '/mfa/setup'
+      preLoaderRoute: typeof MfaSetupRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/transaction-history': {
       id: '/_app/transaction-history'
@@ -201,6 +288,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/security/scan-report': {
+      id: '/api/security/scan-report'
+      path: '/api/security/scan-report'
+      fullPath: '/api/security/scan-report'
+      preLoaderRoute: typeof ApiSecurityScanReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/internal/accounts/export': {
+      id: '/api/internal/accounts/export'
+      path: '/api/internal/accounts/export'
+      fullPath: '/api/internal/accounts/export'
+      preLoaderRoute: typeof ApiInternalAccountsExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -226,8 +327,13 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  SecurityRoute: SecurityRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
+  MfaSetupRoute: MfaSetupRoute,
+  MfaVerifyRoute: MfaVerifyRoute,
+  ApiSecurityScanReportRoute: ApiSecurityScanReportRoute,
+  ApiInternalAccountsExportRoute: ApiInternalAccountsExportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
