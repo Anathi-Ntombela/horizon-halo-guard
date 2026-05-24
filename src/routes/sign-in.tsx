@@ -1,4 +1,5 @@
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
+import { useServerFn } from '@tanstack/react-start'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { logHaloEvent } from '@/lib/halo'
+import { preflightSignIn } from '@/lib/banking.functions'
 
 const Schema = z.object({
   email: z.string().email(),
@@ -29,23 +31,51 @@ export const Route = createFileRoute('/sign-in')({
 
 function SignInPage() {
   const [loading, setLoading] = useState(false)
+  const preflight = useServerFn(preflightSignIn)
   const { register, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(Schema),
   })
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true)
-    const { data, error } = await supabase.auth.signInWithPassword(values)
-    if (error) {
+    try {
+      // 1. Pre-flight rate-limit check.
+      const pf = await preflight({ data: { email: values.email } }) as
+        { blocked: true; blocked_until: string } | { blocked: false }
+      if (pf.blocked) {
+        toast.error('Too many failed attempts. Please try again later.')
+        setLoading(false)
+        return
+      }
+
+      // 2. Password sign-in.
+      const { data, error } = await supabase.auth.signInWithPassword(values)
+      if (error) {
+        setLoading(false)
+        await logHaloEvent('AUTH_FAILURE', { email: values.email, reason: error.message })
+        toast.error(error.message)
+        return
+      }
+      await logHaloEvent('AUTH_SUCCESS', { userId: data.user?.id })
+
+      // 3. MFA gate. If TOTP enrolled but session aal is aal1, force /mfa/verify.
+      const { data: factors } = await supabase.auth.mfa.listFactors()
+      const verifiedTotp = (factors?.totp ?? []).find((f) => f.status === 'verified')
+      if (verifiedTotp) {
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+        if (aal?.currentLevel !== 'aal2') {
+          window.location.assign('/mfa/verify')
+          return
+        }
+      }
+
+      toast.success('Signed in')
+      // Full reload so AuthProvider + _app beforeLoad see the freshly persisted session.
+      window.location.assign('/')
+    } catch (err: any) {
       setLoading(false)
-      await logHaloEvent('AUTH_FAILURE', { email: values.email, reason: error.message })
-      toast.error(error.message)
-      return
+      toast.error(err?.message ?? 'Sign-in failed')
     }
-    await logHaloEvent('AUTH_SUCCESS', { userId: data.user?.id })
-    toast.success('Signed in')
-    // Full reload so AuthProvider + _app beforeLoad see the freshly persisted session.
-    window.location.assign('/')
   }
 
   return (
@@ -74,6 +104,9 @@ function SignInPage() {
         </form>
         <p className="text-sm text-center mt-4 text-muted-foreground">
           No account? <Link to="/sign-up" className="text-primary font-medium">Sign up</Link>
+        </p>
+        <p className="text-xs text-center mt-2 text-muted-foreground">
+          <Link to="/security" className="hover:underline">How we protect your data →</Link>
         </p>
       </Card>
     </div>

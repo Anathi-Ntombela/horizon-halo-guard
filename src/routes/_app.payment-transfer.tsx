@@ -4,8 +4,9 @@ import { useServerFn } from '@tanstack/react-start'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { AlertTriangle } from 'lucide-react'
 
 import { supabase } from '@/integrations/supabase/client'
 import { Card } from '@/components/ui/card'
@@ -17,8 +18,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
 import { logHaloEvent } from '@/lib/halo'
-import { dwollaTransfer, internalTransfer } from '@/lib/banking.functions'
+import { dwollaTransfer, internalTransfer, reportTransferCancelled } from '@/lib/banking.functions'
 import { formatCurrency } from '@/lib/format'
 
 const Schema = z.object({
@@ -30,6 +34,20 @@ const Schema = z.object({
 })
 type FormValues = z.infer<typeof Schema>
 
+type Warning = {
+  warning: true
+  message: string
+  flags: string[]
+  proceed_token: string
+}
+
+const FLAG_LABELS: Record<string, string> = {
+  new_recipient: 'First-ever transfer to this recipient',
+  recently_added: 'Recipient bank was added in the last 24 hours',
+  unusual_amount: 'Amount is much larger than your recent average',
+  vishing_timing: 'Transfer submitted within 45 seconds of opening the page',
+}
+
 export const Route = createFileRoute('/_app/payment-transfer')({
   component: TransferPage,
 })
@@ -39,8 +57,17 @@ function TransferPage() {
   const qc = useQueryClient()
   const dwolla = useServerFn(dwollaTransfer)
   const internal = useServerFn(internalTransfer)
+  const cancelFn = useServerFn(reportTransferCancelled)
   const [mode, setMode] = useState<'internal' | 'ach'>('internal')
   const [loading, setLoading] = useState(false)
+  const [warning, setWarning] = useState<{
+    payload: Warning
+    values: FormValues
+    time_on_page: number
+  } | null>(null)
+
+  const pageLoadedAt = useRef<number>(Date.now())
+  useEffect(() => { pageLoadedAt.current = Date.now() }, [])
 
   const banks = useQuery({
     queryKey: ['banks'],
@@ -52,27 +79,72 @@ function TransferPage() {
     resolver: zodResolver(Schema),
   })
 
+  const runTransfer = async (
+    v: FormValues,
+    extras: { proceed_token?: string; time_on_page: number },
+  ) => {
+    const payload = { ...v, ...extras }
+    const fn = mode === 'ach' ? dwolla : internal
+    const res: any = await fn({ data: payload })
+
+    // Server returned a friction warning rather than executing.
+    if (res?.warning) {
+      setWarning({ payload: res as Warning, values: v, time_on_page: extras.time_on_page })
+      return false
+    }
+
+    if (v.amount > 10_000) {
+      await logHaloEvent('ANOMALOUS_TRANSFER', {
+        amount: v.amount, mode, source: v.source_bank_id, recipient: v.recipient_email,
+      })
+    }
+    qc.invalidateQueries({ queryKey: ['recent-tx'] })
+    qc.invalidateQueries({ queryKey: ['tx'] })
+    qc.invalidateQueries({ queryKey: ['banks'] })
+    toast.success(mode === 'ach' ? 'Transfer initiated via Dwolla' : 'Internal transfer complete')
+    reset()
+    nav({ to: '/' })
+    return true
+  }
+
   const onSubmit = async (v: FormValues) => {
     setLoading(true)
     try {
-      if (mode === 'ach') await dwolla({ data: v })
-      else await internal({ data: v })
-      if (v.amount > 10_000) {
-        await logHaloEvent('ANOMALOUS_TRANSFER', {
-          amount: v.amount, mode, source: v.source_bank_id, recipient: v.recipient_email,
-        })
-      }
-      qc.invalidateQueries({ queryKey: ['recent-tx'] })
-      qc.invalidateQueries({ queryKey: ['tx'] })
-      qc.invalidateQueries({ queryKey: ['banks'] })
-      toast.success(mode === 'ach' ? 'Transfer initiated via Dwolla' : 'Internal transfer complete')
-      reset()
-      nav({ to: '/' })
+      const time_on_page = Math.max(0, Math.floor((Date.now() - pageLoadedAt.current) / 1000))
+      await runTransfer(v, { time_on_page })
     } catch (e: any) {
       toast.error(e.message ?? 'Transfer failed')
     } finally {
       setLoading(false)
     }
+  }
+
+  const confirmProceed = async () => {
+    if (!warning) return
+    setLoading(true)
+    try {
+      await runTransfer(warning.values, {
+        proceed_token: warning.payload.proceed_token,
+        time_on_page: warning.time_on_page,
+      })
+      setWarning(null)
+    } catch (e: any) {
+      toast.error(e.message ?? 'Transfer failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const cancelTransfer = async () => {
+    if (!warning) return
+    try {
+      await cancelFn({ data: {
+        proceed_token: warning.payload.proceed_token,
+        flags: warning.payload.flags,
+      }})
+    } catch { /* ignore — best effort */ }
+    setWarning(null)
+    toast.info('Transfer cancelled. Verifying directly with the recipient is the safest call.')
   }
 
   const e = formState.errors
@@ -88,7 +160,8 @@ function TransferPage() {
         <h1 className="text-2xl font-bold">Payment Transfer</h1>
         <p className="text-sm text-muted-foreground">
           Send funds to another HORIZON user using their bank's <strong>Share ID</strong>.
-          Transfers over $10,000 trigger a HALO anomaly alert.
+          Transfers over $10,000 trigger a HALO anomaly alert. Unusual recipients prompt a
+          friction check before sending.
         </p>
       </div>
 
@@ -162,6 +235,42 @@ function TransferPage() {
           </Button>
         </form>
       </Card>
+
+      <Dialog open={!!warning} onOpenChange={(o) => { if (!o) cancelTransfer() }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
+              <AlertTriangle className="size-5" /> Verify this transfer
+            </DialogTitle>
+            <DialogDescription>
+              {warning?.payload.message}
+            </DialogDescription>
+          </DialogHeader>
+          {warning && (
+            <div className="space-y-2 mt-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Why HALO flagged this
+              </p>
+              <ul className="text-sm space-y-1.5">
+                {warning.payload.flags.map((f) => (
+                  <li key={f} className="flex items-start gap-2">
+                    <span className="text-amber-500 mt-0.5">•</span>
+                    <span>{FLAG_LABELS[f] ?? f.replace(/_/g, ' ')}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={cancelTransfer} disabled={loading}>
+              Cancel transfer
+            </Button>
+            <Button onClick={confirmProceed} disabled={loading}>
+              {loading ? 'Sending…' : 'I have verified this — proceed'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

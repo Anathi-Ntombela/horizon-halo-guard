@@ -1,7 +1,8 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
-  Shield, AlertTriangle, Activity, Eye, Hammer, Trash2, Zap,
+  Shield, AlertTriangle, Activity, Eye, Hammer, Trash2, Zap, UserCheck,
 } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceArea,
@@ -12,11 +13,15 @@ import { supabase } from '@/integrations/supabase/client'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ForensicsPanel } from '@/components/halo/ForensicsPanel'
 import { LayersPanel } from '@/components/halo/LayersPanel'
+import { IncidentTimeline } from '@/components/halo/IncidentTimeline'
+import { ScanReportCard } from '@/components/halo/ScanReport'
+import { CaseStudies } from '@/components/halo/CaseStudies'
 import {
   fetchHaloStatus, triggerHoneypot, clearHaloEvents, severityColor, relativeTime,
 } from '@/lib/halo'
@@ -29,6 +34,13 @@ export const Route = createFileRoute('/_app/halo')({
       _user_id: sess.session.user.id, _role: 'admin',
     })
     if (!ok) throw redirect({ to: '/' })
+
+    // Admin enforcement: require MFA enrollment + verification for HALO.
+    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    const { data: factors } = await supabase.auth.mfa.listFactors()
+    const verifiedTotp = (factors?.totp ?? []).find((f) => f.status === 'verified')
+    if (!verifiedTotp) throw redirect({ to: '/mfa/setup' })
+    if (aalData?.currentLevel !== 'aal2') throw redirect({ to: '/mfa/verify' })
   },
   component: HaloPage,
 })
@@ -55,7 +67,6 @@ function gaugeStroke(s: HaloState['status']) {
 }
 
 function ThreatGauge({ score, status }: { score: number; status: HaloState['status'] }) {
-  // Arc gauge using SVG (180deg)
   const r = 80
   const c = Math.PI * r
   const pct = Math.max(0, Math.min(100, score)) / 100
@@ -82,17 +93,18 @@ function ThreatGauge({ score, status }: { score: number; status: HaloState['stat
   )
 }
 
-function StatCard({ icon: Icon, label, value, accent }: {
-  icon: any; label: string; value: number; accent?: string
+function StatCard({ icon: Icon, label, value, accent, sublabel }: {
+  icon: any; label: string; value: number; accent?: string; sublabel?: string
 }) {
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide truncate">{label}</p>
           <p className={cn('text-2xl font-bold mt-1', accent)}>{value}</p>
+          {sublabel && <p className="text-[11px] text-muted-foreground mt-0.5">{sublabel}</p>}
         </div>
-        <Icon className={cn('size-5 text-muted-foreground', value > 0 && accent)} />
+        <Icon className={cn('size-5 text-muted-foreground flex-shrink-0', value > 0 && accent)} />
       </div>
     </Card>
   )
@@ -117,27 +129,48 @@ function HaloPage() {
     }
   }, [])
 
-  // Initial + 3s polling
   useEffect(() => {
     refresh()
     const id = setInterval(refresh, 3000)
     return () => clearInterval(id)
   }, [refresh])
 
-  // Realtime push refresh whenever a new event lands
   useEffect(() => {
     const ch = supabase.channel('halo_events_live')
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'halo_events' },
-        () => refresh(),
-      )
+        () => refresh())
       .on('postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'halo_events' },
-        () => refresh(),
-      )
+        () => refresh())
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [refresh])
+
+  // Social engineering analytics — pull last 7 days for the awareness card,
+  // last 24 h for the stat card.
+  const socialQ = useQuery({
+    queryKey: ['halo-social'],
+    refetchInterval: 8000,
+    queryFn: async () => {
+      const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const { data } = await supabase.from('halo_events')
+        .select('id,created_at,metadata')
+        .eq('event_type', 'SOCIAL_ENGINEERING_VECTOR')
+        .gte('created_at', since7)
+        .order('created_at', { ascending: false })
+        .limit(500)
+      return data ?? []
+    },
+  })
+  const social = useMemo(() => {
+    const all = socialQ.data ?? []
+    const since24 = Date.now() - 24 * 60 * 60 * 1000
+    const last24 = all.filter((e) => new Date(e.created_at).getTime() >= since24)
+    const cancelled = last24.filter((e) => (e.metadata as any)?.outcome === 'user_cancelled').length
+    const proceeded = last24.filter((e) => (e.metadata as any)?.outcome !== 'user_cancelled').length
+    return { last24Count: last24.length, last7Count: all.length, cancelled, proceeded }
+  }, [socialQ.data])
 
   const onHoneypot = async () => {
     await triggerHoneypot()
@@ -166,6 +199,7 @@ function HaloPage() {
       <Tabs defaultValue="monitor">
         <TabsList>
           <TabsTrigger value="monitor">Live monitor</TabsTrigger>
+          <TabsTrigger value="timeline">Incident Timeline</TabsTrigger>
           <TabsTrigger value="architecture">Architecture</TabsTrigger>
           <TabsTrigger value="forensics">Forensics</TabsTrigger>
         </TabsList>
@@ -180,7 +214,7 @@ function HaloPage() {
               </p>
             </Card>
 
-            <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+            <div className="lg:col-span-2 grid grid-cols-2 lg:grid-cols-2 gap-3">
               <StatCard icon={Activity} label="Events logged" value={state?.totalEvents ?? 0} />
               <StatCard icon={Eye} label="Honeypot hits" value={state?.honeypotTriggers ?? 0}
                         accent={(state?.honeypotTriggers ?? 0) > 0 ? 'text-red-600' : ''} />
@@ -188,8 +222,31 @@ function HaloPage() {
                         accent={(state?.anomalyCount ?? 0) > 0 ? 'text-amber-600' : ''} />
               <StatCard icon={Hammer} label="Brute-force" value={state?.bruteForceCount ?? 0}
                         accent={(state?.bruteForceCount ?? 0) > 0 ? 'text-red-600' : ''} />
+              <StatCard
+                icon={UserCheck}
+                label="Social engineering vectors"
+                value={social.last24Count}
+                accent={social.last24Count > 0 ? 'text-amber-600' : ''}
+                sublabel={social.last24Count > 0
+                  ? `${social.cancelled} cancelled · ${social.proceeded} proceeded`
+                  : 'last 24 h'}
+              />
             </div>
           </div>
+
+          {social.last7Count > 0 && (
+            <Alert variant={social.last7Count > 2 ? 'destructive' : 'default'}>
+              <AlertTriangle className="size-4" />
+              <AlertTitle>Social engineering activity</AlertTitle>
+              <AlertDescription>
+                {social.last7Count} transfer{social.last7Count === 1 ? '' : 's'} in the last 7 days matched
+                social engineering patterns. If any were requested by someone contacting you unexpectedly —
+                by phone, email, or message — contact your bank immediately.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <ScanReportCard />
 
           <Card className="p-6">
             <p className="text-sm font-semibold mb-3">Threat score (last ~90s)</p>
@@ -252,6 +309,12 @@ function HaloPage() {
               </Button>
             </div>
           </Card>
+
+          <CaseStudies />
+        </TabsContent>
+
+        <TabsContent value="timeline" className="mt-4">
+          <IncidentTimeline />
         </TabsContent>
 
         <TabsContent value="architecture" className="mt-4">
