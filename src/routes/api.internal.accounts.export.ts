@@ -13,16 +13,22 @@ async function handle(request: Request) {
   })
 
   // Fire-and-forget log; never block the fake response.
-  supabaseAdmin.from('halo_events').insert({
-    event_type: 'HONEYPOT_TRIGGER',
-    severity: 'critical',
-    metadata: {
-      path: '/api/internal/accounts/export',
-      method: request.method,
-      headers: headerSnapshot,
-      ts: Date.now(),
-    },
-  }).then(() => {}).catch((e) => console.error('honeypot log fail', e))
+  void (async () => {
+    try {
+      await supabaseAdmin.from('halo_events').insert({
+        event_type: 'HONEYPOT_TRIGGER',
+        severity: 'critical',
+        metadata: {
+          path: '/api/internal/accounts/export',
+          method: request.method,
+          headers: headerSnapshot,
+          ts: Date.now(),
+        } as any,
+      })
+    } catch (e) {
+      console.error('honeypot log fail', e)
+    }
+  })()
 
   const fake = {
     status: 'success',

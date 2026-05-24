@@ -83,7 +83,7 @@ async function logVector(
     user_id: userId,
     event_type: 'SOCIAL_ENGINEERING_VECTOR',
     severity: 'high',
-    metadata,
+    metadata: metadata as any,
   })
 }
 

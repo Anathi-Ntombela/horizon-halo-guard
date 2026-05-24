@@ -98,6 +98,11 @@ function AppLayout() {
         <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
           <Outlet />
         </main>
+        <footer className="px-4 md:px-8 py-4 text-xs text-muted-foreground border-t bg-white">
+          <Link to="/security" className="hover:underline">Security & privacy</Link>
+          <span className="mx-2">·</span>
+          <span>HORIZON — protected by HALO</span>
+        </footer>
       </div>
     </div>
   )
