@@ -28,7 +28,6 @@ export const Route = createFileRoute('/sign-in')({
 })
 
 function SignInPage() {
-  const nav = useNavigate()
   const [loading, setLoading] = useState(false)
   const { register, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(Schema),
@@ -37,15 +36,16 @@ function SignInPage() {
   const onSubmit = async (values: FormValues) => {
     setLoading(true)
     const { data, error } = await supabase.auth.signInWithPassword(values)
-    setLoading(false)
     if (error) {
+      setLoading(false)
       await logHaloEvent('AUTH_FAILURE', { email: values.email, reason: error.message })
       toast.error(error.message)
       return
     }
     await logHaloEvent('AUTH_SUCCESS', { userId: data.user?.id })
     toast.success('Signed in')
-    nav({ to: '/' })
+    // Full reload so AuthProvider + _app beforeLoad see the freshly persisted session.
+    window.location.assign('/')
   }
 
   return (
