@@ -87,14 +87,33 @@ banking product all at once.
   the intent is captured as a `SUSPICIOUS_PATTERN` event so nothing is lost.
 - Anomalous transfer detection — any transfer > $10,000 (ACH *or* internal)
   raises an `ANOMALOUS_TRANSFER` event.
+- **Rate limiting / lockout** — 5 failed sign-ins from the same context
+  (email + IP) drop a row into `blocked_contexts` with a 15-minute TTL;
+  `preflightSignIn` rejects the attempt before Supabase Auth is even called.
+- **Realistic honeypot path** — decoy lives at `/api/internal/accounts/export`
+  (TanStack server route) instead of an obvious `/honeypot` URL.
+- **Tamper-evident forensics export** — JSON exports include a SHA-256
+  `export_hash` over the payload so any post-export edit is detectable.
+- **Social-engineering layer** — new-recipient + recently-added-bank +
+  unusual-amount flags raise `SOCIAL_ENGINEERING_VECTOR` events; transfers
+  with 2+ flags require a server-issued `proceed_token` and a friction modal.
+- **Incident timeline** — realtime tab on the HALO dashboard that
+  reconstructs security events as plain-English narratives.
+- **OWASP ZAP scan summary** card pulled from `/api/security/scan-report`.
+- **MFA (TOTP)** — `/mfa/setup` and `/mfa/verify` using Supabase Auth MFA;
+  admins must satisfy AAL2 before reaching `/halo` or `/admin`.
+- **Public security posture page** at `/security`, linked from the global footer.
+- **Case-study reference panel** with a `localStorage`-persisted open state.
 
 ### Admin
-- New `/admin` route, gated by the `has_role(user, 'admin')` RPC.
+- New `/admin` route, gated by `is_super_admin(uid)` and MFA (AAL2 required).
+- Only the **first** admin (super-admin) can grant or revoke the admin role.
 - Lists every profile with their roles and join date.
 - Grant / revoke the `admin` role with one click. Roles live in a separate
   `user_roles` table (never on `profiles`) so privilege checks are
   RLS-friendly and immune to client tampering.
-- Sidebar shows the **Admin** entry only when `isAdmin` is true.
+- Sidebar shows the **Admin** and **HALO** entries only when the viewer is
+  the super-admin / an admin respectively.
 
 ---
 
