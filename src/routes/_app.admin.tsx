@@ -19,7 +19,15 @@ export const Route = createFileRoute('/_app/admin')({
     const { data: sess } = await supabase.auth.getSession()
     if (!sess.session) throw redirect({ to: '/sign-in' })
     const { data: isSuper } = await supabase.rpc('is_super_admin', { _user_id: sess.session.user.id })
-    if (isSuper) return
+    if (isSuper) {
+      // Require MFA for admin console (matches HALO posture).
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      const { data: factors } = await supabase.auth.mfa.listFactors()
+      const verifiedTotp = (factors?.totp ?? []).find((f) => f.status === 'verified')
+      if (!verifiedTotp) throw redirect({ to: '/mfa/setup' })
+      if (aalData?.currentLevel !== 'aal2') throw redirect({ to: '/mfa/verify' })
+      return
+    }
     // Allow access when no admin exists yet — user can claim the super-admin slot.
     const { count } = await supabase.from('user_roles').select('*', { count: 'exact', head: true }).eq('role', 'admin')
     if ((count ?? 0) > 0) throw redirect({ to: '/' })
