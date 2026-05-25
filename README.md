@@ -240,5 +240,14 @@ record a `SUSPICIOUS_PATTERN` row noting that email delivery was skipped.
 | Alerting         | Resend via the Lovable connector gateway — admin-only HTML emails       |
 | Role storage     | `user_roles` table + `has_role(uid, role)` SECURITY DEFINER function    |
 | Bootstrap admin  | `bootstrap_admin(uid)` — server-only function, succeeds only when no admin exists |
-| Detection rules  | Brute-force (5× AUTH_FAILURE / 120s), anomalous transfer (> $10,000)    |
+| Detection rules  | Brute-force (5× AUTH_FAILURE / 120s), anomalous transfer (> $10,000), social-engineering vector (new recipient + new bank + unusual amount) |
+| Rate limiting    | `blocked_contexts` table + `preflightSignIn` server fn (15-min TTL)     |
+| Honeypot path    | `/api/internal/accounts/export` (TanStack server route, plausible decoy) |
+| Tamper evidence  | SHA-256 `export_hash` appended to forensics JSON exports                |
+| Friction modal   | `transfer_proceed_tokens` + server-issued single-use proceed token       |
+| Incident timeline| Realtime HALO tab — plain-English event narratives                       |
+| Scan reporting   | `/api/security/scan-report` route surfacing OWASP ZAP summary           |
+| MFA              | Supabase Auth TOTP — `/mfa/setup`, `/mfa/verify`; AAL2 required for `/halo` and `/admin` |
+| Public posture   | `/security` route + footer link explaining controls to end users         |
+
 
